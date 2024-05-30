@@ -74,6 +74,8 @@ class FakeJoystick:
         return self.buttons
 
 
+from . import btjoystick
+
 if __name__ == "__main__":
 
     import sys
@@ -81,7 +83,5 @@ if __name__ == "__main__":
 
     sys.path.append(os.path.split(os.path.dirname(os.path.realpath(__file__)))[0])
 
-    from bt_joystick import BluetoothJoystickDeviceMain
-
-    bluetooth_joystick = BluetoothJoystickDeviceMain(FakeJoystick())
+    bluetooth_joystick = btjoystick.BluetoothJoystickDeviceMain(FakeJoystick())
     bluetooth_joystick.run()
