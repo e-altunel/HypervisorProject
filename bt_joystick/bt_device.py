@@ -26,15 +26,22 @@ from bt_joystick.sdp_record import MinorDeviceClass
 
 class BTDevice(dbus.service.Object):
     P_CTRL = 17  # Service port - must match port configured in SDP record
-    P_INTR = 19  # Service port - must match port configured in SDP record#Interrrupt port
-    PROFILE_DBUS_PATH = "/bluez/gcc/gcc_joy_profile"  # dbus path of  the bluez profile we will create
+    P_INTR = (
+        19  # Service port - must match port configured in SDP record#Interrrupt port
+    )
+    PROFILE_DBUS_PATH = (
+        "/bluez/gcc/gcc_joy_profile"  # dbus path of  the bluez profile we will create
+    )
 
-    def __init__(self, device_name='HyperVisorCustomGamepad',
-                 device_class=LIMITED_DISCOVERABLE_MODE | PERIPHERAL | GAMEPAD,
-                 uuid="00001124-0000-1000-8000-00805f9b34fb",
-                 service_name='org.gcc.btservice',
-                 service_record=None,
-                 hid_descriptor=None):
+    def __init__(
+        self,
+        device_name="HyperVisorCustomGamepad",
+        device_class=LIMITED_DISCOVERABLE_MODE | PERIPHERAL | GAMEPAD,
+        uuid="00001124-0000-1000-8000-00805f9b34fb",
+        service_name="org.gcc.btservice",
+        service_record=None,
+        hid_descriptor=None,
+    ):
 
         self.device_name = device_name
         self.device_class = device_class
@@ -51,8 +58,20 @@ class BTDevice(dbus.service.Object):
             self.service_record = service_record
         else:
             if hid_descriptor is None:
-                hid_descriptor = hid_report_descriptor.create_joystick_report_descriptor(kind=Usage.Gamepad, axes=(Usage.X, Usage.Y, Usage.Rx, Usage.Ry), button_number=14)
-            self.service_record = sdp_record.create_simple_HID_SDP_Report("A Virtual Gamepad Controller", "Keyboard > BT Gamepad", "GCC", hid_descriptor, subclass=MinorDeviceClass.Gamepad)
+                hid_descriptor = (
+                    hid_report_descriptor.create_joystick_report_descriptor(
+                        kind=Usage.Gamepad,
+                        axes=(Usage.X, Usage.Y, Usage.Rx, Usage.Ry),
+                        button_number=14,
+                    )
+                )
+            self.service_record = sdp_record.create_simple_HID_SDP_Report(
+                "A Virtual Gamepad Controller",
+                "Keyboard > BT Gamepad",
+                "GCC",
+                hid_descriptor,
+                subclass=MinorDeviceClass.Gamepad,
+            )
 
         self.init_device()
         self.init_profile()
@@ -65,7 +84,9 @@ class BTDevice(dbus.service.Object):
     def init_device(self):
         print("Bringing hcio up")
         os.system("hciconfig hcio up")
-        time.sleep(1)  # Waiting for BT device to be brought up - it would be nicer to find better way than arbitrary wait
+        time.sleep(
+            1
+        )  # Waiting for BT device to be brought up - it would be nicer to find better way than arbitrary wait
 
         os.system("hciconfig hcio class 0x{:06x}".format(self.device_class))
         os.system("hciconfig hcio name " + self.device_name)
@@ -73,54 +94,75 @@ class BTDevice(dbus.service.Object):
 
     def ensure_dbus_conf_file(self):
         def compare_old_and_new(old_content):
-            with open("/etc/dbus-1/system.d/" + self.service_name + ".conf", "r") as existing_etc_conf_file:
+            with open(
+                "/etc/dbus-1/system.d/" + self.service_name + ".conf", "r"
+            ) as existing_etc_conf_file:
                 original_conf_file_content = existing_etc_conf_file.read()
 
             return original_conf_file_content == old_content
 
-        conf_file_content = "<!DOCTYPE busconfig PUBLIC \"-//freedesktop//DTD D-BUS Bus Configuration 1.0//EN\" \"http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd\">"
+        conf_file_content = '<!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-BUS Bus Configuration 1.0//EN" "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">'
         conf_file_content += "<busconfig>"
-        conf_file_content += "        <policy user=\"root\">"
-        conf_file_content += "                <allow own=\"" + self.service_name + "\"/>"
+        conf_file_content += '        <policy user="root">'
+        conf_file_content += '                <allow own="' + self.service_name + '"/>'
         conf_file_content += "        </policy>"
-        conf_file_content += "        <policy context=\"default\">"
-        conf_file_content += "                <deny own=\"" + self.service_name + "\"/>"
-        conf_file_content += "                <allow send_destination=\"" + self.service_name + "\"/>"
+        conf_file_content += '        <policy context="default">'
+        conf_file_content += '                <deny own="' + self.service_name + '"/>'
+        conf_file_content += (
+            '                <allow send_destination="' + self.service_name + '"/>'
+        )
         conf_file_content += "        </policy>"
         conf_file_content += "</busconfig>"
 
-        config_exists = os.path.exists("/etc/dbus-1/system.d/" + self.service_name + ".conf")
+        config_exists = os.path.exists(
+            "/etc/dbus-1/system.d/" + self.service_name + ".conf"
+        )
 
         do_replace = not config_exists or not compare_old_and_new(conf_file_content)
 
         if do_replace:
             try:
-                with open("/etc/dbus-1/system.d/" + self.service_name + ".conf", "w") as etc_conf_file:
+                with open(
+                    "/etc/dbus-1/system.d/" + self.service_name + ".conf", "w"
+                ) as etc_conf_file:
                     etc_conf_file.write(conf_file_content)
             except Exception as e1:
-                sys.exit("Failed to create/replace " + self.service_name + ".conf in /etc/dbus-1/system.d/;" + str(e1))
+                sys.exit(
+                    "Failed to create/replace "
+                    + self.service_name
+                    + ".conf in /etc/dbus-1/system.d/;"
+                    + str(e1)
+                )
 
     def init_profile(self):
         opts = {
             "ServiceRecord": self.service_record.xml(),
             "Role": "server",
             "RequireAuthentication": False,
-            "RequireAuthorization": False
+            "RequireAuthorization": False,
         }
 
         bus = dbus.SystemBus()
-        manager = dbus.Interface(bus.get_object("org.bluez", "/org/bluez"), "org.bluez.ProfileManager1")
+        manager = dbus.Interface(
+            bus.get_object("org.bluez", "/org/bluez"), "org.bluez.ProfileManager1"
+        )
 
         manager.RegisterProfile(BTDevice.PROFILE_DBUS_PATH, self.uuid, opts)
 
     def listen(self):
-        self.scontrol = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_L2CAP)
-        self.sinterrupt = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_L2CAP)
+        print("Opening sockets")
+        self.scontrol = socket.socket(
+            socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_L2CAP
+        )
+        self.sinterrupt = socket.socket(
+            socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_L2CAP
+        )
 
-
+        print("Binding")
         self.scontrol.bind((socket.BDADDR_ANY, self.P_CTRL))
         self.sinterrupt.bind((socket.BDADDR_ANY, self.P_INTR))
 
+        print("Listening")
         # Start listening on the server sockets
         self.scontrol.listen(1)  # Limit of 1 connection
         self.sinterrupt.listen(1)
@@ -133,9 +175,9 @@ class BTDevice(dbus.service.Object):
 
         self.cinterrupt.setblocking(False)
 
-    def  send_message(self, message):
+    def send_message(self, message):
         self.cinterrupt.send(message)
-    
+
     def recv_message(self, size) -> bytes:
         return self.cinterrupt.recv(size, socket.MSG_DONTWAIT)
 
@@ -152,5 +194,15 @@ class BTDevice(dbus.service.Object):
         :param axis_values: list of axis values (each in -127..127)
         :param hat_value: value for the hat switch: 1..8 for top, top right, right, ..., top left, or 9 for the middle (not pressed) position
         """
-        self.send_message(bytes((0xA1, 0x01, button_bits & 255, button_bits >> 8, *[v if v >= 0 else v + 256 for v in axis_values], hat_value)))
-
+        self.send_message(
+            bytes(
+                (
+                    0xA1,
+                    0x01,
+                    button_bits & 255,
+                    button_bits >> 8,
+                    *[v if v >= 0 else v + 256 for v in axis_values],
+                    hat_value,
+                )
+            )
+        )
