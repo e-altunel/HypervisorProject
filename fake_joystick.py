@@ -3,7 +3,7 @@
 #
 # MIT License
 #
-from inputs import get_gamepad
+from inputs import get_gamepad, UnpluggedError
 import threading
 import time
 
@@ -40,6 +40,9 @@ class FakeJoystick:
             for event in events:
                 self.processEvent(event)
         except OSError:
+            return
+        except UnpluggedError:
+            time.sleep(1)
             return
 
     def processEvent(self, event):
